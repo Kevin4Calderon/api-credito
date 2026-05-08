@@ -50,7 +50,6 @@ s3 = boto3.client(
 def cargar_modelo():
 
     try:
-
         print("Cargando modelo desde S3...")
 
         obj = s3.get_object(
@@ -67,9 +66,7 @@ def cargar_modelo():
         return modelo
 
     except Exception as e:
-
         print("Error cargando modelo:", e)
-
         return None
 
 modelo = cargar_modelo()
@@ -80,6 +77,7 @@ modelo = cargar_modelo()
 
 class DatosEntrada(BaseModel):
     datos: list
+    edad: int
 
 # =========================
 # ROOT
@@ -87,7 +85,6 @@ class DatosEntrada(BaseModel):
 
 @app.get("/")
 def root():
-
     return {
         "mensaje": "API funcionando correctamente"
     }
@@ -101,21 +98,24 @@ def predecir(data: DatosEntrada):
 
     try:
 
-        if modelo is None:
+        # 🚨 REGLA DE NEGOCIO: MENOR DE EDAD
+        if data.edad < 18:
+            return {
+                "probabilidad": 0.0,
+                "decision": "RECHAZAR",
+                "motivo": "Menor de edad"
+            }
 
+        if modelo is None:
             return {
                 "error": "Modelo no cargado"
             }
 
-        datos = np.array(
-            data.datos
-        ).reshape(1, -1)
+        datos = np.array(data.datos).reshape(1, -1)
 
         print("Datos recibidos:", datos)
 
-        prob = modelo.predict_proba(
-            datos
-        )[0][1]
+        prob = modelo.predict_proba(datos)[0][1]
 
         return {
             "probabilidad": float(prob),
