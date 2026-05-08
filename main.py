@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 # =========================
-# CONEXION AWS S3
+# CONEXIÓN AWS S3
 # =========================
 
 s3 = boto3.client(
@@ -50,7 +50,6 @@ s3 = boto3.client(
 def cargar_modelo():
 
     try:
-
         print("Cargando modelo desde S3...")
 
         obj = s3.get_object(
@@ -58,19 +57,16 @@ def cargar_modelo():
             Key=MODEL_KEY
         )
 
-        modelo = pickle.loads(
-            obj['Body'].read()
-        )
+        modelo = pickle.loads(obj['Body'].read())
 
         print("Modelo cargado correctamente")
 
         return modelo
 
     except Exception as e:
-
         print("Error cargando modelo:", e)
-
         return None
+
 
 modelo = cargar_modelo()
 
@@ -87,13 +83,12 @@ class DatosEntrada(BaseModel):
 
 @app.get("/")
 def root():
-
     return {
         "mensaje": "API funcionando correctamente"
     }
 
 # =========================
-# PREDICCION
+# PREDICCIÓN
 # =========================
 
 @app.post("/prediccion")
@@ -102,20 +97,28 @@ def predecir(data: DatosEntrada):
     try:
 
         if modelo is None:
+            return {"error": "Modelo no cargado"}
 
+        # Convertir input a numpy
+        datos = np.array(data.datos).reshape(1, -1)
+
+        # =========================
+        # 🔴 REGLA: EXTRAER EDAD
+        # =========================
+        edad = data.datos[4]  # <- según tu ejemplo
+
+        # 🚫 BLOQUEO MENORES DE 18
+        if edad < 18:
             return {
-                "error": "Modelo no cargado"
+                "probabilidad": 0.0,
+                "decision": "RECHAZAR",
+                "razon": "Menor de edad"
             }
-
-        datos = np.array(
-            data.datos
-        ).reshape(1, -1)
 
         print("Datos recibidos:", datos)
 
-        prob = modelo.predict_proba(
-            datos
-        )[0][1]
+        # Predicción del modelo
+        prob = modelo.predict_proba(datos)[0][1]
 
         return {
             "probabilidad": float(prob),
@@ -127,7 +130,6 @@ def predecir(data: DatosEntrada):
         }
 
     except Exception as e:
-
         return {
             "error": str(e)
         }
